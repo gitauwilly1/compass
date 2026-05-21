@@ -4,9 +4,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.exceptions import AuthenticationFailed
 
 from accounts.models import User
 from accounts.serializers import RegisterSerializer, UserSerializer
+from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter, OpenApiExample
 
 
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -20,15 +22,31 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
+        # Prevent issuing tokens for inactive users
+        if not getattr(self.user, 'is_active', True):
+            raise AuthenticationFailed('User account is deactivated.')
         data["user"] = UserSerializer(self.user).data
         return data
 
-
+@extend_schema_view(
+    post=extend_schema(
+        tags=['Authentication'],
+        summary='Login',
+        description='Authenticate a user and obtain JWT tokens.',
+    )
+)
 class LoginAPIView(TokenObtainPairView):
     permission_classes = [AllowAny]
     serializer_class = EmailTokenObtainPairSerializer
 
 
+@extend_schema_view(
+    post=extend_schema(
+        tags=['Authentication'],
+        summary='Register',
+        description='Register a new user account.',
+    )
+)
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
 
