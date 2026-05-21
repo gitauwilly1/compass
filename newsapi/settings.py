@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'drf_spectacular',
     'django_filters',
     'cloudinary',
     'articles',
@@ -147,9 +148,56 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ]
+    ],
+
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+
+     'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'News API',
+    'DESCRIPTION': """
+    API for managing news articles, categories, and user interactions.
+    
+    Features include:
+    - User registration and authentication (JWT)
+    - Role-based access control (admin, editor, regular user)
+    - CRUD operations for articles and categories
+    - Article publishing workflow (draft, review, published)
+    - Filtering, searching, and pagination of articles
+    - Cloudinary integration for image uploads
+    - Comprehensive API documentation with drf-spectacular
+    """,
+    'VERSION': '1.0.0',
+
+    'SERVE_INCLUDE_SCHEMA': False,
+
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+    },
+
+    'COMPLETE_SPLIT_REQUEST': True,
+
+    'TAGS': [
+        {'name': 'Authentication', 'description': 'Endpoints for user registration, login, and role management.'},
+        {'name': 'Articles', 'description': 'Endpoints for creating, retrieving, updating, and deleting articles.'},
+        {'name': 'Categories', 'description': 'Endpoints for managing article categories.'},
+    ],
+    
 }
 
 SIMPLE_JWT = {
