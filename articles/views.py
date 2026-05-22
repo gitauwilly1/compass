@@ -3,13 +3,14 @@ from django.http import HttpResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.utils import timezone
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
-from articles.models import Article, Category
-from articles.serializers import ArticleSerializer, CategorySerializer
+from articles.models import Article, Category, Comment, Like, Bookmark
+from articles.serializers import ArticleSerializer, CategorySerializer, CommentSerializer
 from articles.permissions import ArticlePermission
 from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter, OpenApiExample
 
@@ -62,6 +63,10 @@ class ArticleViewSet(viewsets.ModelViewSet):
     queryset = Article.objects.select_related(
         'author',
         'category'
+    ).prefetch_related(
+        'comments',
+        'likes',
+        'bookmarks'
     ).all()
 
     serializer_class = ArticleSerializer
@@ -96,6 +101,64 @@ class ArticleViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
         
+    @action(detail=True, methods=['get'], url_path='comments', permission_classes=[AllowAny])
+    def list_comments(self, request, slug=None):
+        article = self.get_object()
+        comments = article.comments.select_related('author').all()
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='comments', permission_classes=[IsAuthenticated])
+    def add_comment(self, request, slug=None):
+        article = self.get_object()
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(author=request.user, article=article)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post', 'delete'], url_path='like', permission_classes=[IsAuthenticated])
+    def like(self, request, slug=None):
+        article = self.get_object()
+
+        if request.method == 'POST':
+            like, created = Like.objects.get_or_create(article=article, user=request.user)
+            if created:
+                return Response({'detail': 'Article liked', 'likes_count': article.likes_count}, status=status.HTTP_201_CREATED)
+            return Response({'detail': 'Article already liked', 'likes_count': article.likes_count}, status=status.HTTP_200_OK)
+
+        like = Like.objects.filter(article=article, user=request.user).first()
+        if like is None:
+            return Response({'detail': 'Like does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        like.delete()
+        return Response({'detail': 'Article unliked', 'likes_count': article.likes_count}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='liked', permission_classes=[IsAuthenticated])
+    def liked(self, request, slug=None):
+        article = self.get_object()
+        return Response({'is_liked': article.is_liked_by(request.user), 'likes_count': article.likes_count})
+
+    @action(detail=True, methods=['post', 'delete'], url_path='bookmark', permission_classes=[IsAuthenticated])
+    def bookmark(self, request, slug=None):
+        article = self.get_object()
+
+        if request.method == 'POST':
+            bm, created = Bookmark.objects.get_or_create(article=article, user=request.user)
+            if created:
+                return Response({'detail': 'Article bookmarked', 'bookmarks_count': article.bookmarks_count}, status=status.HTTP_201_CREATED)
+            return Response({'detail': 'Article already bookmarked', 'bookmarks_count': article.bookmarks_count}, status=status.HTTP_200_OK)
+
+        bm = Bookmark.objects.filter(article=article, user=request.user).first()
+        if bm is None:
+            return Response({'detail': 'Bookmark does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        bm.delete()
+        return Response({'detail': 'Article unbookmarked', 'bookmarks_count': article.bookmarks_count}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='bookmarked', permission_classes=[IsAuthenticated])
+    def bookmarked(self, request, slug=None):
+        article = self.get_object()
+        return Response({'is_bookmarked': article.is_bookmarked_by(request.user), 'bookmarks_count': article.bookmarks_count})
+
     @action(detail=True, methods=['post'])
     def publish(self, request, slug=None):
 

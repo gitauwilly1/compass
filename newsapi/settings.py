@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     'django_filters',
     'cloudinary',
     'articles',
-    'accounts'
+    'accounts',
+    'mpesa',
 ]
 
 MIDDLEWARE = [
@@ -207,3 +208,8 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': False,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY')
+MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET')
+MPESA_SHORTCODE = config('MPESA_SHORTCODE')
+MPESA_PASSKEY = config('MPESA_PASSKEY')

@@ -38,3 +38,65 @@ class Article(models.Model):
         
     def __str__(self):
         return self.title
+
+    @property
+    def comment_count(self):
+        return self.comments.count()
+
+    @property
+    def likes_count(self):
+        return self.likes.count()
+
+    def is_liked_by(self, user):
+        if user is None or not user.is_authenticated:
+            return False
+        return self.likes.filter(user=user).exists()
+
+    @property
+    def bookmarks_count(self):
+        return self.bookmarks.count()
+
+    def is_bookmarked_by(self, user):
+        if user is None or not user.is_authenticated:
+            return False
+        return self.bookmarks.filter(user=user).exists()
+
+
+class Comment(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='comments')
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Comment by {self.author.email} on {self.article.title}"
+
+
+class Like(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('article', 'user')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Like by {self.user.email} on {self.article.title}"
+
+
+class Bookmark(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='bookmarks')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bookmarks')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('article', 'user')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Bookmark by {self.user.email} on {self.article.title}"
